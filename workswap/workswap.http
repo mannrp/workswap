@@ -1,0 +1,6 @@
+@workswap_HostAddress = http://localhost:5156
+
+GET {{workswap_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
