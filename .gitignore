@@ -1,6 +1,7 @@
 # .NET
 bin/
 obj/
+.dotnet/
 *.user
 *.suo
 *.cache
@@ -26,6 +27,12 @@ Thumbs.db
 # Database
 *.db
 *.sqlite
+*.db-shm
+*.db-wal
+
+# Local workspace artifacts
+/TestResults/
+/package-lock.json
 
 # Node (if any)
 node_modules/
