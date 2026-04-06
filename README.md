@@ -2,7 +2,7 @@
 
 A shift management and swap system built with **ASP.NET Core** and **SQLite**, designed to help teams manage work schedules, swap shifts, and offer shifts to colleagues.
 
-## 🚀 Tech Stack
+## Tech Stack
 
 - **Backend**: ASP.NET Core 10.0 (Web API)
 - **Database**: SQLite (local file-based database)
@@ -11,7 +11,7 @@ A shift management and swap system built with **ASP.NET Core** and **SQLite**, d
 - **Testing**: xUnit + WebApplicationFactory (integration tests)
 - **API Documentation**: Scalar (interactive API explorer)
 
-## 📋 Features
+## Features
 
 - **User Authentication**: Register, login, and JWT-based authorization
 - **Department Management**: Create and manage organizational departments
@@ -21,7 +21,7 @@ A shift management and swap system built with **ASP.NET Core** and **SQLite**, d
 - **Notifications**: Real-time notifications for swap requests and offers
 - **Health Check**: `/api/health` endpoint for monitoring
 
-## 🏗️ Architecture
+## Architecture
 
 This project follows **clean architecture** principles:
 
@@ -37,7 +37,7 @@ This project follows **clean architecture** principles:
 3. **Constants over Enums**: Used `const string` for status values to avoid EF value converter complexity
 4. **JWT Authentication**: Stateless authentication for scalability
 
-## 🛠️ Local Setup
+## Local Setup
 
 ### Prerequisites
 
@@ -84,7 +84,7 @@ This project follows **clean architecture** principles:
    - API: `https://localhost:5001`
    - Interactive API Docs (Scalar): `https://localhost:5001/scalar/v1`
 
-## 📡 API Overview
+## API Overview
 
 ### Authentication
 - `POST /api/auth/register` - Register a new user
@@ -115,7 +115,7 @@ This project follows **clean architecture** principles:
 ### Health
 - `GET /api/health` - Health check endpoint
 
-## 🧪 Testing
+## Testing
 
 Run the integration tests:
 
@@ -127,7 +127,7 @@ The test suite includes:
 - **Auth flow tests**: Register → Login → Access protected endpoint
 - **Shift CRUD tests**: Create and retrieve shifts
 
-## 🚢 Deployment
+## Deployment
 
 This application is designed for easy deployment:
 
@@ -144,11 +144,7 @@ This application is designed for easy deployment:
    - `JWT_AUDIENCE`
    - `JWT_DURATION_MINUTES`
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License.
 
-## 👤 Author
-
-**[Your Name]**  
-[GitHub](https://github.com/yourusername) | [LinkedIn](https://linkedin.com/in/yourprofile)
