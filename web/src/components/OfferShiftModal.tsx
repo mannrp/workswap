@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { createShiftOffer } from '@/lib/api';
+import { api } from '@/lib/api';
 
 /**
  * OfferShiftModal: A simple modal that lets a user put their shift 
@@ -15,7 +15,6 @@ interface OfferShiftModalProps {
 }
 
 export default function OfferShiftModal({ shiftId, shiftDate, onClose, onSuccess }: OfferShiftModalProps) {
-    // Junior-level state management: keep it simple
     const [expiresAt, setExpiresAt] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -26,16 +25,12 @@ export default function OfferShiftModal({ shiftId, shiftDate, onClose, onSuccess
         setError('');
 
         try {
-            // If no date is picked, the backend will default to 7 days
             const expiryParam = expiresAt ? new Date(expiresAt).toISOString() : undefined;
+            await api.createShiftOffer(shiftId, expiryParam);
 
-            await createShiftOffer(shiftId, expiryParam);
-
-            // Tell the parent component we are done
             onSuccess();
             onClose();
         } catch (err: any) {
-            // Show error if something goes wrong
             setError(err.message || 'Failed to create offer');
         } finally {
             setLoading(false);
