@@ -8,6 +8,7 @@ import { UserInfo, Shift, SwapRequest, Notification } from '@/types';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import StatCard from '@/components/StatCard';
 import ShiftTable from '@/components/ShiftTable';
+import { Icons } from '@/components/Icons';
 
 export default function DashboardPage() {
     const [user, setUser] = useState<UserInfo | null>(null);
@@ -85,25 +86,25 @@ export default function DashboardPage() {
                         label="My Shifts"
                         value={stats.totalShifts.toString()}
                         description="Assigned to you"
-                        icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+                        icon={<Icons.Calendar className="w-5 h-5" />}
                     />
                     <StatCard
                         label="Open Shifts"
                         value={stats.openShifts.toString()}
                         description="Available in your department"
-                        icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                        icon={<Icons.CheckCircle className="w-5 h-5" />}
                     />
                     <StatCard
                         label="Pending Swaps"
                         value={stats.pendingSwaps.toString()}
                         description="Awaiting response"
-                        icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>}
+                        icon={<Icons.Swap className="w-5 h-5" />}
                     />
                     <StatCard
                         label="Hours Scheduled"
                         value={stats.totalHours.toString()}
                         description="Total hours this period"
-                        icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                        icon={<Icons.Clock className="w-5 h-5" />}
                     />
                 </div>
 
@@ -121,7 +122,7 @@ export default function DashboardPage() {
                         <div className="grid grid-cols-1 gap-4">
                             <Link href="/shifts/open" className="group flex items-center gap-4 bg-surface border border-border p-4 hover:border-primary transition-all hover:shadow-hard hover:-translate-y-0.5" style={{ borderRadius: 0 }}>
                                 <div className="p-2 bg-blue-500/10 text-blue-500 border border-blue-500/20" style={{ borderRadius: 0 }}>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    <Icons.Plus className="w-5 h-5" />
                                 </div>
                                 <div>
                                     <span className="block font-bold text-sm uppercase">Browse Open Shifts</span>
@@ -130,7 +131,7 @@ export default function DashboardPage() {
                             </Link>
                             <Link href="/offers" className="group flex items-center gap-4 bg-surface border border-border p-4 hover:border-amber-500 transition-all hover:shadow-hard hover:-translate-y-0.5" style={{ borderRadius: 0 }}>
                                 <div className="p-2 bg-amber-500/10 text-amber-500 border border-amber-500/20" style={{ borderRadius: 0 }}>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M4 7h16M4 12h8m-8 5h16" /></svg>
+                                    <Icons.List className="w-5 h-5" />
                                 </div>
                                 <div>
                                     <span className="block font-bold text-sm uppercase">Browse Offers</span>
@@ -139,7 +140,7 @@ export default function DashboardPage() {
                             </Link>
                             <Link href="/swaps" className="group flex items-center gap-4 bg-surface border border-border p-4 hover:border-amber-500 transition-all hover:shadow-hard hover:-translate-y-0.5" style={{ borderRadius: 0 }}>
                                 <div className="p-2 bg-amber-500/10 text-amber-500 border border-amber-500/20" style={{ borderRadius: 0 }}>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                    <Icons.Swap className="w-5 h-5" />
                                 </div>
                                 <div>
                                     <span className="block font-bold text-sm uppercase">Request Shift Swap</span>
