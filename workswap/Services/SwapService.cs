@@ -26,10 +26,11 @@ public class SwapService : ISwapService
         var swaps = await _context.SwapRequests
             .Include(s => s.SenderShift)
                 .ThenInclude(sh => sh.Department)
+            .Include(s => s.Sender)
             .Include(s => s.Receiver)
             .Include(s => s.ReceiverShift)
                 .ThenInclude(sh => sh.Department)
-            .Where(s => s.SenderShift.AssignedUserId == userId || s.ReceiverId == userId)
+            .Where(s => s.SenderShift!.AssignedUserId == userId || s.ReceiverId == userId)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
 
@@ -60,6 +61,7 @@ public class SwapService : ISwapService
         var swap = new SwapRequest
         {
             SenderShiftId = dto.SenderShiftId,
+            SenderId = userId,
             ReceiverId = dto.ReceiverId,
             ReceiverShiftId = dto.ReceiverShiftId,
             Status = SwapStatus.Pending
@@ -73,6 +75,7 @@ public class SwapService : ISwapService
         // Reload to get navigation properties for the response
         var resultSwap = await _context.SwapRequests
             .Include(s => s.SenderShift)
+            .Include(s => s.Sender)
             .Include(s => s.Receiver)
             .Include(s => s.ReceiverShift)
             .FirstAsync(s => s.Id == swap.Id);
@@ -110,7 +113,7 @@ public class SwapService : ISwapService
 
                 if (swap.ReceiverShiftId.HasValue)
                 {
-                    var receiverShift = swap.ReceiverShift;
+                    var receiverShift = swap.ReceiverShift!;
                     // Trade: Swap owners
                     senderShift.AssignedUserId = swap.ReceiverId;
                     receiverShift.AssignedUserId = originalSenderId;

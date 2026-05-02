@@ -117,12 +117,8 @@ public class ShiftService : IShiftService
         shift.EndTime = request.EndTime;
         shift.Notes = request.Notes;
         shift.IsAvailableForSwap = request.IsAvailableForSwap;
-        
-        if (request.DepartmentId.HasValue)
-            shift.DepartmentId = request.DepartmentId.Value;
-            
-        if (request.AssignedUserId.HasValue)
-            shift.AssignedUserId = request.AssignedUserId.Value;
+        shift.DepartmentId = request.DepartmentId;
+        shift.AssignedUserId = request.AssignedUserId;
 
         await _context.SaveChangesAsync();
         

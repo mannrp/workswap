@@ -26,7 +26,8 @@ public class ShiftOfferService : IShiftOfferService
         var query = _context.ShiftOffers
             .Include(o => o.Shift)
                 .ThenInclude(s => s.Department)
-            .Include(o => o.CreatedByUser)
+            .Include(o => o.OfferedBy)
+            .Include(o => o.ClaimedBy)
             .Where(o => o.Status == OfferStatus.Active && o.ExpiresAt > DateTime.UtcNow);
 
         if (departmentId.HasValue)
@@ -57,7 +58,7 @@ public class ShiftOfferService : IShiftOfferService
         var offer = new ShiftOffer
         {
             ShiftId = shiftId,
-            CreatedByUserId = userId,
+            OfferedById = userId,
             ExpiresAt = expiresAt ?? DateTime.UtcNow.AddDays(7),
             Status = OfferStatus.Active
         };
@@ -70,7 +71,7 @@ public class ShiftOfferService : IShiftOfferService
         // Reload for response
         var resultOffer = await _context.ShiftOffers
             .Include(o => o.Shift)
-            .Include(o => o.CreatedByUser)
+            .Include(o => o.OfferedBy)
             .FirstAsync(o => o.Id == offer.Id);
 
         return Result<ShiftOfferResponse>.Success(resultOffer.ToResponse());
@@ -84,7 +85,8 @@ public class ShiftOfferService : IShiftOfferService
         {
             var offer = await _context.ShiftOffers
                 .Include(o => o.Shift)
-                .Include(o => o.CreatedByUser)
+                .Include(o => o.OfferedBy)
+                .Include(o => o.ClaimedBy)
                 .FirstOrDefaultAsync(o => o.Id == offerId);
 
             if (offer == null)
@@ -93,11 +95,12 @@ public class ShiftOfferService : IShiftOfferService
             if (offer.Status != OfferStatus.Active || offer.ExpiresAt <= DateTime.UtcNow)
                 return Result<ShiftOfferResponse>.Failure("This offer is no longer active");
 
-            if (offer.CreatedByUserId == userId)
+            if (offer.OfferedById == userId)
                 return Result<ShiftOfferResponse>.Failure("You cannot claim your own offer");
 
             // Update offer status
             offer.Status = OfferStatus.Claimed;
+            offer.ClaimedById = userId;
 
             // Transfer shift
             offer.Shift.AssignedUserId = userId;

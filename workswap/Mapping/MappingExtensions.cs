@@ -55,14 +55,15 @@ public static class MappingExtensions
         return new SwapRequestResponse(
             swap.Id,
             swap.SenderShiftId,
-            swap.SenderShift?.ToResponse(),
-            swap.ReceiverId,
-            $"{swap.Receiver?.FirstName} {swap.Receiver?.LastName}",
+            swap.SenderShift.ToResponse(),
             swap.ReceiverShiftId,
             swap.ReceiverShift?.ToResponse(),
-            swap.Status,
+            swap.SenderId,
+            $"{swap.Sender?.FirstName} {swap.Sender?.LastName}",
+            swap.ReceiverId,
+            $"{swap.Receiver?.FirstName} {swap.Receiver?.LastName}",
             swap.CreatedAt,
-            swap.UpdatedAt
+            swap.Status
         );
     }
 
@@ -71,12 +72,14 @@ public static class MappingExtensions
         return new ShiftOfferResponse(
             offer.Id,
             offer.ShiftId,
-            offer.Shift?.ToResponse(),
-            offer.CreatedByUserId,
-            $"{offer.CreatedByUser?.FirstName} {offer.CreatedByUser?.LastName}",
-            offer.Status,
+            offer.Shift.ToResponse(),
+            offer.OfferedById,
+            $"{offer.OfferedBy?.FirstName} {offer.OfferedBy?.LastName}",
+            offer.ClaimedById,
+            offer.ClaimedBy != null ? $"{offer.ClaimedBy.FirstName} {offer.ClaimedBy.LastName}" : null,
             offer.CreatedAt,
-            offer.ExpiresAt
+            offer.ExpiresAt,
+            offer.Status
         );
     }
 }

@@ -14,7 +14,7 @@ public class Result<T>
     public string? Error { get; }
     public HttpStatusCode StatusCode { get; }
 
-    private Result(bool isSuccess, T? value, string? error, HttpStatusCode statusCode)
+    public Result(bool isSuccess, T? value, string? error, HttpStatusCode statusCode)
     {
         IsSuccess = isSuccess;
         Value = value;
