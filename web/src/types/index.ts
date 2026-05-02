@@ -70,6 +70,12 @@ export interface SwapRequest {
     status: 'Pending' | 'Completed' | 'Rejected' | 'Cancelled';
 }
 
+export interface CreateSwapRequest {
+    senderShiftId: number;
+    receiverShiftId?: number;
+    receiverId: number;
+}
+
 export interface Notification {
     id: number;
     message: string;

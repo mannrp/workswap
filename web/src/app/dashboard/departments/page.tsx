@@ -27,8 +27,9 @@ export default function DepartmentsPage() {
             if (!res.ok) throw new Error('Failed to fetch departments');
             const data = await res.json();
             setDepartments(data);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message);
         } finally {
             setLoading(false);
         }
@@ -59,8 +60,9 @@ export default function DepartmentsPage() {
             }
             closeModal();
             fetchDepartments();
-        } catch (err: any) {
-            alert('Operation failed: ' + err.message);
+        } catch (err) {
+            const error = err as Error;
+            alert('Operation failed: ' + error.message);
         }
     };
 
@@ -69,8 +71,9 @@ export default function DepartmentsPage() {
         try {
             await fetchWithAuth(`/departments/${id}`, { method: 'DELETE' });
             fetchDepartments();
-        } catch (err: any) {
-            alert('Delete failed: ' + err.message);
+        } catch (err) {
+            const error = err as Error;
+            alert('Delete failed: ' + error.message);
         }
     };
 

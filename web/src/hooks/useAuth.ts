@@ -47,8 +47,28 @@ export function useAuth() {
             } else {
                 setError(res.error || 'Login failed');
             }
-        } catch (err: any) {
-            setError(err.message || 'Login failed');
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const register = async (email: string, password: string, firstName: string, lastName: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.register(email, password, firstName, lastName);
+            if (res.success) {
+                await fetchUser();
+                router.push('/dashboard');
+            } else {
+                setError(res.error || 'Registration failed');
+            }
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message || 'Registration failed');
         } finally {
             setLoading(false);
         }
@@ -65,6 +85,7 @@ export function useAuth() {
         loading,
         error,
         login,
+        register,
         logout,
         isAuthenticated: !!user,
         refreshUser: fetchUser

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { UserInfo, Shift, SwapRequest, Notification } from '@/types';
+import { UserInfo, Shift } from '@/types';
 
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
 import StatCard from '@/components/StatCard';
@@ -13,7 +13,6 @@ import { Icons } from '@/components/Icons';
 export default function DashboardPage() {
     const [user, setUser] = useState<UserInfo | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [recentShifts, setRecentShifts] = useState<Shift[]>([]);
     const [stats, setStats] = useState({
         totalShifts: 0,
@@ -59,7 +58,8 @@ export default function DashboardPage() {
                 });
 
             } catch (err) {
-                if (mounted) setError((err as Error).message);
+                // Silently fail or log to telemetry
+                console.error(err);
             } finally {
                 if (mounted) setLoading(false);
             }

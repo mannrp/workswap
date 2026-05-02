@@ -29,7 +29,7 @@ export default function CreateSwapModal({ shiftId, shiftDate, onClose, onSuccess
                 } else {
                     setError('No department found for your user profile.');
                 }
-            } catch (err: any) {
+            } catch {
                 setError('Failed to load colleagues.');
             } finally {
                 setLoading(false);
@@ -58,8 +58,9 @@ export default function CreateSwapModal({ shiftId, shiftDate, onClose, onSuccess
 
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setError(err.message || 'Failed to send swap request.');
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message || 'Failed to send swap request.');
         } finally {
             setSubmitting(false);
         }

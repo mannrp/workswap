@@ -1,10 +1,10 @@
 import { 
     AuthResponse, 
     UserInfo, 
-    Department, 
     Shift, 
     ShiftOffer, 
     SwapRequest, 
+    CreateSwapRequest,
     Notification 
 } from '../types';
 
@@ -211,7 +211,7 @@ export const getShiftOffers = (d?: number) => api.getShiftOffers(d);
 export const createShiftOffer = (id: number, ex?: string) => api.createShiftOffer(id, ex);
 export const claimShiftOffer = (id: number) => api.claimShiftOffer(id);
 export const getMySwaps = () => api.getMySwaps();
-export const createSwapRequest = (d: any) => api.createSwapRequest(d);
+export const createSwapRequest = (d: CreateSwapRequest) => api.createSwapRequest(d);
 export const respondToSwap = (id: number, a: boolean) => api.respondToSwap(id, a);
 export const getDepartmentEmployees = (id: number) => api.getDepartmentEmployees(id);
 export const getNotifications = () => api.getNotifications();

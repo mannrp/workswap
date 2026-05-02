@@ -25,7 +25,7 @@ export default function MyShiftsPage() {
         try {
             const data = await api.getMyShifts();
             setShifts(data);
-        } catch (err: any) {
+        } catch {
             setError('Failed to load your shifts. Please try again later.');
         } finally {
             setLoading(false);

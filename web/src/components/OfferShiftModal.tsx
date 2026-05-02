@@ -30,8 +30,9 @@ export default function OfferShiftModal({ shiftId, shiftDate, onClose, onSuccess
 
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setError(err.message || 'Failed to create offer');
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message || 'Failed to create offer');
         } finally {
             setLoading(false);
         }

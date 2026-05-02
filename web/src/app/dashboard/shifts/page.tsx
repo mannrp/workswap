@@ -50,8 +50,9 @@ export default function ShiftsPage() {
 
             setShifts(shiftsData);
             setDepartments(deptsData);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message);
         } finally {
             setLoading(false);
         }
@@ -93,8 +94,9 @@ export default function ShiftsPage() {
             }
             closeModal();
             fetchData();
-        } catch (err: any) {
-            alert('Operation failed: ' + err.message);
+        } catch (err) {
+            const error = err as Error;
+            alert('Operation failed: ' + error.message);
         }
     };
 
@@ -103,8 +105,9 @@ export default function ShiftsPage() {
         try {
             await fetchWithAuth(`/shifts/${id}`, { method: 'DELETE' });
             fetchData();
-        } catch (err: any) {
-            alert('Delete failed: ' + err.message);
+        } catch (err) {
+            const error = err as Error;
+            alert('Delete failed: ' + error.message);
         }
     };
 
