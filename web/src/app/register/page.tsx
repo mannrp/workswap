@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { register, setToken } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function RegisterPage() {
     const [formData, setFormData] = useState({
@@ -13,9 +13,16 @@ export default function RegisterPage() {
         firstName: '',
         lastName: '',
     });
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    
+    const { register, error: authError, loading, isAuthenticated } = useAuth();
+    const [localError, setLocalError] = useState('');
     const router = useRouter();
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            router.push('/dashboard');
+        }
+    }, [isAuthenticated, router]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -23,29 +30,22 @@ export default function RegisterPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
+        setLocalError('');
 
         if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
+            setLocalError('Passwords do not match');
             return;
         }
 
-        setLoading(true);
-        try {
-            const response = await register(
-                formData.email,
-                formData.password,
-                formData.firstName,
-                formData.lastName
-            );
-            setToken(response.token);
-            router.push('/dashboard');
-        } catch (err: any) {
-            setError(err.message || 'Registration failed');
-        } finally {
-            setLoading(false);
-        }
+        await register(
+            formData.email,
+            formData.password,
+            formData.firstName,
+            formData.lastName
+        );
     };
+
+    const displayError = localError || authError;
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -130,9 +130,9 @@ export default function RegisterPage() {
                         />
                     </div>
 
-                    {error && (
+                    {displayError && (
                         <div className="border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive font-mono">
-                            [ERROR]: {error}
+                            [ERROR]: {displayError}
                         </div>
                     )}
 

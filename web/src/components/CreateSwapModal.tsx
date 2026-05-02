@@ -1,12 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getDepartmentEmployees, createSwapRequest, getMe } from '@/lib/api';
+import { api } from '@/lib/api';
+import { UserShort } from '@/types';
 
-/**
- * CreateSwapModal: Allows a user to select a colleague and request 
- * a direct shift swap.
- */
 interface CreateSwapModalProps {
     shiftId: number;
     shiftDate: string;
@@ -15,27 +12,24 @@ interface CreateSwapModalProps {
 }
 
 export default function CreateSwapModal({ shiftId, shiftDate, onClose, onSuccess }: CreateSwapModalProps) {
-    // Junior-level approach: simple states for everything
-    const [colleagues, setColleagues] = useState<any[]>([]);
+    const [colleagues, setColleagues] = useState<UserShort[]>([]);
     const [selectedReceiverId, setSelectedReceiverId] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        // We need to know our department to fetch colleagues
         const fetchData = async () => {
             try {
-                const me = await getMe();
+                const me = await api.getMe();
                 if (me?.departmentId) {
-                    const employees = await getDepartmentEmployees(me.departmentId);
-                    // Filter out ourselves from the list
-                    const otherEmployees = employees.filter((e: any) => e.id !== me.id);
+                    const employees = await api.getDepartmentEmployees(me.departmentId);
+                    const otherEmployees = employees.filter(e => e.id !== me.id);
                     setColleagues(otherEmployees);
                 } else {
                     setError('No department found for your user profile.');
                 }
-            } catch (err: any) {
+            } catch {
                 setError('Failed to load colleagues.');
             } finally {
                 setLoading(false);
@@ -57,17 +51,16 @@ export default function CreateSwapModal({ shiftId, shiftDate, onClose, onSuccess
         setError('');
 
         try {
-            // Note: createSwapRequest expects { senderShiftId, receiverId, receiverShiftId? }
-            await createSwapRequest({
+            await api.createSwapRequest({
                 senderShiftId: shiftId,
-                receiverId: parseInt(selectedReceiverId),
-                // receiverShiftId is optional and omitted for the "fastest path" general swap
+                receiverId: parseInt(selectedReceiverId)
             });
 
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setError(err.message || 'Failed to send swap request.');
+        } catch (err) {
+            const error = err as Error;
+            setError(error.message || 'Failed to send swap request.');
         } finally {
             setSubmitting(false);
         }
@@ -101,7 +94,7 @@ export default function CreateSwapModal({ shiftId, shiftDate, onClose, onSuccess
                                 <option value="">-- Choose Colleague --</option>
                                 {colleagues.map((c) => (
                                     <option key={c.id} value={c.id}>
-                                        {c.fullName}
+                                        {c.firstName} {c.lastName}
                                     </option>
                                 ))}
                             </select>

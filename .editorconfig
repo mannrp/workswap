@@ -1,0 +1,19 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.cs]
+# C# Coding Conventions
+dotnet_diagnostic.IDE0055.severity = warning # Fix formatting
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_expression_bodied_methods = true:suggestion
+csharp_style_expression_bodied_constructors = false:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_accessors = true:suggestion
+
+[*.{js,ts,tsx,css}]
+indent_size = 2

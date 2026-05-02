@@ -1,34 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import Navbar from '@/components/Navbar';
-import { getMe, User, getToken } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AuthenticatedLayoutProps {
     children: React.ReactNode;
 }
 
 export default function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { user, loading, isAuthenticated } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
-        const token = getToken();
-        if (!token) {
+        if (!loading && !isAuthenticated) {
             router.push('/');
-            return;
         }
-
-        getMe()
-            .then(setUser)
-            .catch(() => {
-                router.push('/');
-            })
-            .finally(() => setLoading(false));
-    }, [router]);
+    }, [loading, isAuthenticated, router]);
 
     if (loading) {
         return (
@@ -41,6 +31,8 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
             </div>
         );
     }
+
+    if (!isAuthenticated) return null;
 
     return (
         <div className="flex min-h-screen bg-background">

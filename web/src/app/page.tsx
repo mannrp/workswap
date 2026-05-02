@@ -1,31 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { login, setToken } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const { login, loading, error } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const response = await login(email, password);
-      setToken(response.token);
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
+    await login(email, password);
   };
 
   return (
@@ -52,10 +38,7 @@ export default function LoginPage() {
                 placeholder="user@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border-b border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:bg-surface focus:outline-none transition-colors"
-                // Minimalist input style: Bottom border only, or full square border. Let's go with full square for better hit area but sharp.
-                // Actually design system said "Bottom border only (Minimal) OR Full box with 1px border". 
-                // Let's try full box for login to be safe.
+                className="w-full border border-border bg-background px-3 py-3 text-sm text-foreground focus:border-primary focus:bg-surface focus:outline-none transition-colors"
                 style={{ borderRadius: 0 }}
               />
             </div>

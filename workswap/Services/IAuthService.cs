@@ -1,13 +1,20 @@
+using workswap.Common;
 using workswap.DTOs;
 
 namespace workswap.Services;
 
 /// <summary>
-/// This interface defines what our Auth Service must do.
-/// We use interfaces for better testing and "Loose Coupling".
+/// Service for user authentication, including registration and login.
 /// </summary>
 public interface IAuthService
 {
-    Task<AuthResponse> RegisterAsync(RegisterRequest request);
-    Task<AuthResponse> LoginAsync(LoginRequest request);
+    /// <summary>
+    /// Registers a new user.
+    /// </summary>
+    Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request);
+
+    /// <summary>
+    /// Authenticates a user and returns a JWT token.
+    /// </summary>
+    Task<Result<AuthResponse>> LoginAsync(LoginRequest request);
 }

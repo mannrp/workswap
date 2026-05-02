@@ -44,7 +44,8 @@ public record CreateShiftRequest(
     TimeOnly EndTime,
     int DepartmentId,
     int? AssignedUserId = null,
-    string? Notes = null
+    string? Notes = null,
+    bool IsAvailableForSwap = false
 );
 
 /// <summary>

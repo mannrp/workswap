@@ -1,14 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using workswap.DTOs;
+using workswap.Extensions;
 using workswap.Services;
 
 namespace workswap.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
+/// <summary>
+/// Endpoints for managing shift swap requests between users.
+/// </summary>
 [Authorize]
-public class SwapsController : ControllerBase
+public class SwapsController : ApiControllerBase
 {
     private readonly ISwapService _swapService;
     private readonly ILogger<SwapsController> _logger;
@@ -19,54 +21,49 @@ public class SwapsController : ControllerBase
         _logger = logger;
     }
 
-    // GET: api/swaps
+    /// <summary>
+    /// Retrieves all swap requests involving the current user (sent or received).
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<SwapRequestResponse>>> GetMySwaps()
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
-        var swaps = await _swapService.GetMySwapsAsync(userId);
-        return Ok(swaps);
+        var userId = User.GetUserId();
+        var result = await _swapService.GetMySwapsAsync(userId);
+        return HandleResult(result);
     }
 
-    // POST: api/swaps
+    /// <summary>
+    /// Creates a new shift swap request.
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult<SwapRequestResponse>> CreateSwap([FromBody] CreateSwapDto dto)
     {
-        try
+        var userId = User.GetUserId();
+        var result = await _swapService.CreateSwapAsync(userId, dto);
+        
+        if (result.IsSuccess && result.Value != null)
         {
-            var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
-            var swap = await _swapService.CreateSwapAsync(userId, dto);
-            return CreatedAtAction(nameof(GetMySwaps), new { id = swap.Id }, swap);
+            return CreatedAtAction(nameof(GetMySwaps), new { id = result.Value.Id }, result.Value);
         }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        
+        return HandleResult(result);
     }
 
-    // PUT: api/swaps/{id}/respond
+    /// <summary>
+    /// Accepts or rejects an incoming swap request.
+    /// </summary>
     [HttpPut("{id}/respond")]
     public async Task<IActionResult> RespondToSwap(int id, [FromBody] SwapResponseDto dto)
     {
-        try
+        var userId = User.GetUserId();
+        var result = await _swapService.RespondToSwapAsync(id, userId, dto.Accepted);
+        
+        if (result.IsSuccess)
         {
-            var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
-            await _swapService.RespondToSwapAsync(id, userId, dto.Accepted);
-            
-            var message = dto.Accepted ? "Swap accepted" : "Swap rejected";
+            var message = dto.Accepted ? "Swap accepted and shifts transferred." : "Swap request rejected.";
             return Ok(new { message });
         }
-        catch (ArgumentException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        
+        return HandleResult(result);
     }
 }

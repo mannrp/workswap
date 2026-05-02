@@ -1,30 +1,39 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import { getMySwaps, respondToSwap, getMe } from '@/lib/api';
+import { api } from '@/lib/api';
+import { SwapRequest } from '@/types';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SwapRequestsPage() {
-    const [swaps, setSwaps] = React.useState<any[]>([]);
-    const [loading, setLoading] = React.useState(true);
+    const [swaps, setSwaps] = useState<SwapRequest[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
 
-    React.useEffect(() => {
-        let mounted = true;
-        getMySwaps()
-            .then((data) => { if (mounted) setSwaps(data); })
-            .catch(() => { if (mounted) setSwaps([]); })
-            .finally(() => { if (mounted) setLoading(false); });
-        return () => { mounted = false; };
+    const fetchSwaps = async () => {
+        setLoading(true);
+        try {
+            const data = await api.getMySwaps();
+            setSwaps(data);
+        } catch {
+            setSwaps([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSwaps();
     }, []);
 
     const handleRespond = async (swapId: number, accepted: boolean) => {
         try {
-            await respondToSwap(swapId, accepted);
-            // Refresh
-            const data = await getMySwaps();
-            setSwaps(data);
+            await api.respondToSwap(swapId, accepted);
+            await fetchSwaps();
         } catch (err) {
-            alert((err as Error).message);
+            const error = err as Error;
+            alert(error.message);
         }
     };
 
@@ -37,9 +46,13 @@ export default function SwapRequestsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
-                    {loading && <p className="text-muted-foreground">Loading...</p>}
+                    {loading && (
+                        <div className="text-center py-12 border border-border border-dashed font-mono animate-pulse">
+                            LOADING REQUESTS...
+                        </div>
+                    )}
 
-                    {swaps.map((swap) => (
+                    {!loading && swaps.map((swap) => (
                         <div key={swap.id} className="border border-border bg-surface p-6 shadow-sm hover:shadow-hard transition-all flex items-center justify-between group">
                             <div className="flex items-center gap-6">
                                 <div className={`w-1 h-12 ${swap.status === 'Pending' ? 'bg-amber-500' : 'bg-green-500'}`} style={{ borderRadius: 0 }}></div>
@@ -52,7 +65,7 @@ export default function SwapRequestsPage() {
                                 <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 border ${swap.status === 'Pending' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' : 'text-green-500 bg-green-500/10 border-green-500/20'}`} style={{ borderRadius: 0 }}>
                                     {swap.status}
                                 </span>
-                                {swap.status === 'Pending' && swap.receiverId === (getMe() as any)?.id && (
+                                {swap.status === 'Pending' && swap.receiverId === user?.id && (
                                     <div className="flex gap-2">
                                         <button onClick={() => handleRespond(swap.id, true)} className="bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider py-2 px-4 hover:bg-primary/90 transition-all hover:shadow-[2px_2px_0px_0px_var(--foreground)] active:translate-y-[1px] active:shadow-none" style={{ borderRadius: 0 }}>
                                             Accept

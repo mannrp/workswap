@@ -1,19 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import { getShiftOffers, claimShiftOffer, getMe } from '@/lib/api';
+import { api } from '@/lib/api';
+import { ShiftOffer, UserInfo } from '@/types';
 
 export default function OffersPage() {
-    const [offers, setOffers] = React.useState<any[]>([]);
-    const [loading, setLoading] = React.useState(true);
-    const [error, setError] = React.useState('');
-    const [me, setMe] = React.useState<any | null>(null);
-    const [claiming, setClaiming] = React.useState<number | null>(null);
+    const [offers, setOffers] = useState<ShiftOffer[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [me, setMe] = useState<UserInfo | null>(null);
+    const [claiming, setClaiming] = useState<number | null>(null);
 
-    React.useEffect(() => {
+    useEffect(() => {
         let mounted = true;
-        Promise.all([getShiftOffers(), getMe()])
+        Promise.all([api.getShiftOffers(), api.getMe()])
             .then(([data, user]) => {
                 if (!mounted) return;
                 setOffers(data);
@@ -27,10 +28,9 @@ export default function OffersPage() {
     const handleClaim = async (offerId: number) => {
         try {
             setClaiming(offerId);
-            await claimShiftOffer(offerId);
-            const data = await getShiftOffers();
+            await api.claimShiftOffer(offerId);
+            const data = await api.getShiftOffers();
             setOffers(data);
-            alert('Offer claimed successfully');
         } catch (err) {
             alert((err as Error).message);
         } finally {

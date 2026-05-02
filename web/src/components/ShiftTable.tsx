@@ -1,19 +1,11 @@
 'use client';
 
-export interface Shift {
-    id: number;
-    startTime: string;
-    endTime: string;
-    role: string;
-    status: 'Assigned' | 'Open' | 'PendingTransfer' | 'Claimed';
-    user?: string;
-}
+import { Shift } from '@/types';
 
 interface ShiftTableProps {
     shifts: Shift[];
     onAction?: (shift: Shift) => void;
     actionLabel?: string;
-    // New optional actions for multiple buttons
     onOffer?: (shift: Shift) => void;
     onSwap?: (shift: Shift) => void;
 }
@@ -27,21 +19,11 @@ export default function ShiftTable({ shifts, onAction, actionLabel, onOffer, onS
         });
     };
 
-    const formatTime = (dateStr: string) => {
-        return new Date(dateStr).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit'
-        });
-    };
-
-    const getStatusStyle = (status: string) => {
-        switch (status) {
-            case 'Assigned': return 'text-green-500 bg-green-500/10 border-green-500/20';
-            case 'Open': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-            case 'PendingTransfer': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-            case 'Claimed': return 'text-purple-500 bg-purple-500/10 border-purple-500/20';
-            default: return 'text-muted-foreground bg-muted border-border';
-        }
+    const formatTime = (timeStr: string) => {
+        const date = timeStr.includes('T')
+            ? new Date(timeStr)
+            : new Date(`2000-01-01T${timeStr}`);
+        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     };
 
     return (
@@ -51,29 +33,31 @@ export default function ShiftTable({ shifts, onAction, actionLabel, onOffer, onS
                     <tr>
                         <th className="px-6 py-4 font-medium">Date</th>
                         <th className="px-6 py-4 font-medium">Time</th>
-                        <th className="px-6 py-4 font-medium">Role</th>
-                        <th className="px-6 py-4 font-medium">{shifts.some(s => s.user) ? 'User' : 'Status'}</th>
-                        {onAction && <th className="px-6 py-4 font-medium text-right">Action</th>}
+                        <th className="px-6 py-4 font-medium">Department</th>
+                        <th className="px-6 py-4 font-medium">Assigned To</th>
+                        {(onAction || onOffer || onSwap) && (
+                            <th className="px-6 py-4 font-medium text-right">Action</th>
+                        )}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                     {shifts.map((shift) => (
                         <tr key={shift.id} className="hover:bg-muted/50 transition-colors">
-                            <td className="px-6 py-4 font-bold text-foreground">{formatDate(shift.startTime)}</td>
+                            <td className="px-6 py-4 font-bold text-foreground">{formatDate(shift.date)}</td>
                             <td className="px-6 py-4 text-muted-foreground font-mono text-xs">
-                                {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
+                                {formatTime(shift.startTime)} &ndash; {formatTime(shift.endTime)}
                             </td>
                             <td className="px-6 py-4">
                                 <span className="px-2 py-1 text-xs font-bold uppercase tracking-wider bg-background border border-border text-foreground" style={{ borderRadius: 0 }}>
-                                    {shift.role}
+                                    {shift.departmentName}
                                 </span>
                             </td>
                             <td className="px-6 py-4">
-                                {shift.user ? (
-                                    <span className="font-bold text-foreground">{shift.user}</span>
+                                {shift.assignedUserName ? (
+                                    <span className="font-bold text-foreground">{shift.assignedUserName}</span>
                                 ) : (
-                                    <span className={`px-2 py-1 text-xs font-bold uppercase tracking-wider border ${getStatusStyle(shift.status)}`} style={{ borderRadius: 0 }}>
-                                        {shift.status}
+                                    <span className="px-2 py-1 text-xs font-bold uppercase tracking-wider border text-blue-500 bg-blue-500/10 border-blue-500/20" style={{ borderRadius: 0 }}>
+                                        OPEN
                                     </span>
                                 )}
                             </td>

@@ -6,13 +6,10 @@ using workswap.Services;
 namespace workswap.Controllers;
 
 /// <summary>
-/// CRUD operations for managing shifts.
-/// All endpoints require authentication.
+/// Endpoints for managing shifts.
 /// </summary>
 [Authorize]
-[ApiController]
-[Route("api/[controller]")]
-public class ShiftsController : ControllerBase
+public class ShiftsController : ApiControllerBase
 {
     private readonly IShiftService _shiftService;
     private readonly ILogger<ShiftsController> _logger;
@@ -24,7 +21,7 @@ public class ShiftsController : ControllerBase
     }
 
     /// <summary>
-    /// Get shifts with optional filters for department, date range, and user.
+    /// Retrieves all shifts matching the specified criteria.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ShiftResponse>>> GetAll(
@@ -34,79 +31,53 @@ public class ShiftsController : ControllerBase
         [FromQuery] DateOnly? endDate = null,
         [FromQuery] bool? availableForSwap = null)
     {
-        var shifts = await _shiftService.GetAllAsync(departmentId, userId, startDate, endDate, availableForSwap);
-        return Ok(shifts);
+        var result = await _shiftService.GetAllAsync(departmentId, userId, startDate, endDate, availableForSwap);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Get a specific shift by ID.
+    /// Retrieves a specific shift by ID.
     /// </summary>
     [HttpGet("{id}")]
     public async Task<ActionResult<ShiftResponse>> GetById(int id)
     {
-        var shift = await _shiftService.GetByIdAsync(id);
-
-        if (shift == null)
-        {
-            return NotFound(new { message = $"Shift with ID {id} not found." });
-        }
-
-        return Ok(shift);
+        var result = await _shiftService.GetByIdAsync(id);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Create a new shift.
+    /// Creates a new shift.
     /// </summary>
     [HttpPost]
     public async Task<ActionResult<ShiftResponse>> Create(CreateShiftRequest request)
     {
-        try
+        var result = await _shiftService.CreateAsync(request);
+        
+        if (result.IsSuccess && result.Value != null)
         {
-            var shift = await _shiftService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetById), new { id = shift.Id }, shift);
+            return CreatedAtAction(nameof(GetById), new { id = result.Value.Id }, result.Value);
         }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Update an existing shift.
+    /// Updates an existing shift.
     /// </summary>
     [HttpPut("{id}")]
     public async Task<ActionResult<ShiftResponse>> Update(int id, UpdateShiftRequest request)
     {
-        try
-        {
-            var shift = await _shiftService.UpdateAsync(id, request);
-
-            if (shift == null)
-            {
-                return NotFound(new { message = $"Shift with ID {id} not found." });
-            }
-
-            return Ok(shift);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _shiftService.UpdateAsync(id, request);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// Delete a shift.
+    /// Deletes a shift.
     /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var deleted = await _shiftService.DeleteAsync(id);
-
-        if (!deleted)
-        {
-            return NotFound(new { message = $"Shift with ID {id} not found." });
-        }
-
-        return NoContent();
+        var result = await _shiftService.DeleteAsync(id);
+        return HandleResult(result);
     }
 }

@@ -2,17 +2,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using workswap.DTOs;
+using workswap.Extensions;
 using workswap.Services;
 
 namespace workswap.Controllers;
 
 /// <summary>
-/// The AuthController is the entry point for authentication requests.
-/// It uses the AuthService to perform registration and login.
+/// Endpoints for user authentication and profile information.
 /// </summary>
-[ApiController]
-[Route("api/[controller]")]
-public class AuthController : ControllerBase
+public class AuthController : ApiControllerBase
 {
     private readonly IAuthService _authService;
 
@@ -21,51 +19,43 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
+    /// <summary>
+    /// Registers a new user account.
+    /// </summary>
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
         var result = await _authService.RegisterAsync(request);
-        
-        if (!result.Success)
-        {
-            return BadRequest(result);
-        }
-
-        return Ok(result);
+        return HandleResult(result);
     }
 
+    /// <summary>
+    /// Authenticates a user and returns a access token.
+    /// </summary>
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
         var result = await _authService.LoginAsync(request);
-
-        if (!result.Success)
-        {
-            return Unauthorized(result);
-        }
-
-        return Ok(result);
+        return HandleResult(result);
     }
 
     /// <summary>
-    /// This is a protected endpoint. 
-    /// Only logged-in users with a valid JWT token can access it.
+    /// Retrieves the profile information for the currently authenticated user.
     /// </summary>
     [Authorize]
     [HttpGet("me")]
     public ActionResult<UserInfoResponse> GetMe()
     {
-        // We get the user info from the Claims in the token
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userId = User.GetUserId();
+        if (userId == 0) return Unauthorized();
+
         var email = User.FindFirstValue(ClaimTypes.Email);
         var firstName = User.FindFirstValue("firstName");
         var lastName = User.FindFirstValue("lastName");
         var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
 
-        if (userId == null) return Unauthorized();
-
         return Ok(new UserInfoResponse(
-            int.Parse(userId),
+            userId,
             email ?? "",
             firstName ?? "",
             lastName ?? "",

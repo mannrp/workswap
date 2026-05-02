@@ -1,11 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using workswap.Common;
 using workswap.Data;
 using workswap.DTOs;
-using workswap.Models;
 using workswap.Mapping;
+using workswap.Models;
 
 namespace workswap.Services;
 
+/// <summary>
+/// Implementation of ISwapService managing shift swap logic and atomic transactions.
+/// </summary>
 public class SwapService : ISwapService
 {
     private readonly ApplicationDbContext _context;
@@ -17,196 +21,128 @@ public class SwapService : ISwapService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<SwapRequestResponse>> GetMySwapsAsync(int userId)
+    public async Task<Result<IEnumerable<SwapRequestResponse>>> GetMySwapsAsync(int userId)
     {
         var swaps = await _context.SwapRequests
-            .Include(sr => sr.SenderShift)
-                .ThenInclude(ss => ss.Department)
-            .Include(sr => sr.SenderShift.AssignedUser)
-            .Include(sr => sr.ReceiverShift)
-                .ThenInclude(rs => rs!.Department)
-            .Include(sr => sr.ReceiverShift.AssignedUser)
-            .Include(sr => sr.Sender)
-            .Include(sr => sr.Receiver)
-            .Where(sr => sr.SenderId == userId || sr.ReceiverId == userId)
+            .Include(s => s.SenderShift)
+                .ThenInclude(sh => sh.Department)
+            .Include(s => s.Sender)
+            .Include(s => s.Receiver)
+            .Include(s => s.ReceiverShift)
+                .ThenInclude(sh => sh.Department)
+            .Where(s => s.SenderShift!.AssignedUserId == userId || s.ReceiverId == userId)
+            .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
 
-        return swaps.Select(sr => new SwapRequestResponse(
-            sr.Id,
-            sr.SenderShiftId,
-            sr.SenderShift.ToResponse(),
-            sr.ReceiverShiftId,
-            sr.ReceiverShift?.ToResponse(),
-            sr.SenderId,
-            $"{sr.Sender.FirstName} {sr.Sender.LastName}",
-            sr.ReceiverId,
-            $"{sr.Receiver.FirstName} {sr.Receiver.LastName}",
-            sr.CreatedAt,
-            sr.Status
-        ));
+        return Result<IEnumerable<SwapRequestResponse>>.Success(
+            swaps.Select(s => s.ToResponse())
+        );
     }
 
-    public async Task<SwapRequestResponse> CreateSwapAsync(int userId, CreateSwapDto dto)
+    public async Task<Result<SwapRequestResponse>> CreateSwapAsync(int userId, CreateSwapDto dto)
     {
-        var senderShift = await _context.Shifts
-            .Include(s => s.Department)
-            .Include(s => s.AssignedUser)
-            .FirstOrDefaultAsync(s => s.Id == dto.SenderShiftId);
-        
-        if (senderShift == null || senderShift.AssignedUserId != userId)
-            throw new ArgumentException("Invalid sender shift");
+        var senderShift = await _context.Shifts.FindAsync(dto.SenderShiftId);
+        if (senderShift == null)
+            return Result<SwapRequestResponse>.NotFound("Your shift not found");
 
-        Shift? receiverShift = null;
+        if (senderShift.AssignedUserId != userId)
+            return Result<SwapRequestResponse>.Forbidden("You do not own this shift");
+
         if (dto.ReceiverShiftId.HasValue)
         {
-            receiverShift = await _context.Shifts
-                .Include(s => s.Department)
-                .Include(s => s.AssignedUser)
-                .FirstOrDefaultAsync(s => s.Id == dto.ReceiverShiftId.Value);
-            
+            var receiverShift = await _context.Shifts.FindAsync(dto.ReceiverShiftId.Value);
             if (receiverShift == null)
-                throw new ArgumentException("Invalid receiver shift");
-        }
+                return Result<SwapRequestResponse>.NotFound("Receiver shift not found");
 
-        var sender = await _context.Users.FindAsync(userId);
-        var receiver = await _context.Users.FindAsync(dto.ReceiverId);
-        
-        if (sender == null || receiver == null)
-            throw new ArgumentException("Invalid users");
+            if (receiverShift.AssignedUserId != dto.ReceiverId)
+                return Result<SwapRequestResponse>.Failure("Receiver does not own the specified shift");
+        }
 
         var swap = new SwapRequest
         {
             SenderShiftId = dto.SenderShiftId,
-            ReceiverShiftId = dto.ReceiverShiftId,
             SenderId = userId,
             ReceiverId = dto.ReceiverId,
-            Status = "Pending"
+            ReceiverShiftId = dto.ReceiverShiftId,
+            Status = SwapStatus.Pending
         };
 
         _context.SwapRequests.Add(swap);
-
-        // Create notification for receiver
-        var notification = new Notification
-        {
-            UserId = dto.ReceiverId,
-            Message = $"{sender.FirstName} {sender.LastName} wants to swap shifts with you",
-            ActionLink = $"swaps/{swap.Id}"
-        };
-        _context.Notifications.Add(notification);
-
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Swap request {SwapId} created by user {UserId}", swap.Id, userId);
 
-        return new SwapRequestResponse(
-            swap.Id,
-            swap.SenderShiftId,
-            senderShift.ToResponse(),
-            swap.ReceiverShiftId,
-            receiverShift?.ToResponse(),
-            swap.SenderId,
-            $"{sender.FirstName} {sender.LastName}",
-            swap.ReceiverId,
-            $"{receiver.FirstName} {receiver.LastName}",
-            swap.CreatedAt,
-            swap.Status
-        );
+        // Reload to get navigation properties for the response
+        var resultSwap = await _context.SwapRequests
+            .Include(s => s.SenderShift)
+            .Include(s => s.Sender)
+            .Include(s => s.Receiver)
+            .Include(s => s.ReceiverShift)
+            .FirstAsync(s => s.Id == swap.Id);
+
+        return Result<SwapRequestResponse>.Success(resultSwap.ToResponse());
     }
 
-    public async Task<bool> RespondToSwapAsync(int swapId, int userId, bool accepted)
+    public async Task<Result> RespondToSwapAsync(int swapId, int userId, bool accepted)
     {
-        var swap = await _context.SwapRequests
-            .Include(sr => sr.SenderShift)
-            .Include(sr => sr.ReceiverShift)
-            .Include(sr => sr.Sender)
-            .Include(sr => sr.Receiver)
-            .FirstOrDefaultAsync(sr => sr.Id == swapId);
+        using var transaction = await _context.Database.BeginTransactionAsync();
 
-        if (swap == null)
-            throw new ArgumentException("Swap request not found");
-
-        if (swap.ReceiverId != userId)
-            throw new UnauthorizedAccessException("You are not the receiver of this swap");
-
-        if (swap.Status != "Pending")
-            throw new InvalidOperationException("Swap is not pending");
-
-        if (accepted)
+        try
         {
-            // Validate ownership hasn't changed since request
-            if (swap.SenderShift.AssignedUserId != swap.SenderId)
-                throw new InvalidOperationException("Sender no longer owns the sender shift");
+            var swap = await _context.SwapRequests
+                .Include(s => s.SenderShift)
+                .Include(s => s.ReceiverShift)
+                .FirstOrDefaultAsync(s => s.Id == swapId);
 
-            if (swap.ReceiverShift != null && swap.ReceiverShift.AssignedUserId != swap.ReceiverId)
-                throw new InvalidOperationException("Receiver no longer owns the receiver shift");
+            if (swap == null)
+                return Result.NotFound("Swap request not found");
 
-            // Perform the swap transactionally
-            await using var tx = await _context.Database.BeginTransactionAsync();
-            try
+            if (swap.ReceiverId != userId)
+                return Result.Forbidden("You are not the receiver of this swap request");
+
+            if (swap.Status != SwapStatus.Pending)
+                return Result.Failure("This swap request is no longer pending");
+
+            if (accepted)
             {
-                var tempUserId = swap.SenderShift.AssignedUserId;
-                swap.SenderShift.AssignedUserId = swap.ReceiverShift?.AssignedUserId ?? swap.ReceiverId;
-                if (swap.ReceiverShift != null)
+                swap.Status = SwapStatus.Completed;
+
+                // Atomic shift transfer
+                var senderShift = swap.SenderShift;
+                var originalSenderId = senderShift.AssignedUserId;
+
+                if (swap.ReceiverShiftId.HasValue)
                 {
-                    swap.ReceiverShift.AssignedUserId = tempUserId;
+                    var receiverShift = swap.ReceiverShift!;
+                    // Trade: Swap owners
+                    senderShift.AssignedUserId = swap.ReceiverId;
+                    receiverShift.AssignedUserId = originalSenderId;
+                }
+                else
+                {
+                    // Direct Gift: Assign sender shift to receiver
+                    senderShift.AssignedUserId = swap.ReceiverId;
                 }
 
-                swap.Status = "Completed";
-
-                // Create notifications
-                var notificationForSender = new Notification
-                {
-                    UserId = swap.SenderId,
-                    Message = "Your swap request has been accepted",
-                    ActionLink = $"swaps/{swap.Id}"
-                };
-
-                var notificationForReceiver = new Notification
-                {
-                    UserId = userId,
-                    Message = "You have accepted the swap request",
-                    ActionLink = $"swaps/{swap.Id}"
-                };
-
-                _context.Notifications.AddRange(notificationForSender, notificationForReceiver);
-
-                await _context.SaveChangesAsync();
-                await tx.CommitAsync();
-
-                _logger.LogInformation("Swap request {SwapId} accepted by user {UserId}", swapId, userId);
-
-                return true;
+                _logger.LogInformation("Swap {SwapId} accepted. Shifts transferred.", swapId);
             }
-            catch
+            else
             {
-                await tx.RollbackAsync();
-                throw;
+                swap.Status = SwapStatus.Rejected;
+                _logger.LogInformation("Swap {SwapId} rejected by receiver {UserId}", swapId, userId);
             }
+
+            swap.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return Result.Success();
         }
-
-        // Rejection path
-        swap.Status = "Rejected";
-
-        // Create notifications
-        var notificationForSenderRejected = new Notification
+        catch (Exception ex)
         {
-            UserId = swap.SenderId,
-            Message = "Your swap request has been rejected",
-            ActionLink = $"swaps/{swap.Id}"
-        };
-
-        var notificationForReceiverRejected = new Notification
-        {
-            UserId = userId,
-            Message = "You have rejected the swap request",
-            ActionLink = $"swaps/{swap.Id}"
-        };
-
-        _context.Notifications.AddRange(notificationForSenderRejected, notificationForReceiverRejected);
-        await _context.SaveChangesAsync();
-
-        _logger.LogInformation("Swap request {SwapId} rejected by user {UserId}", swapId, userId);
-
-        return true;
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Error processing swap response for swap {SwapId}", swapId);
+            return Result.Failure("An error occurred while processing the swap request.");
+        }
     }
 }

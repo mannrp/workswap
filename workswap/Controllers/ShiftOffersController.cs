@@ -1,14 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using workswap.DTOs;
+using workswap.Extensions;
 using workswap.Services;
 
 namespace workswap.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
+/// <summary>
+/// Endpoints for managing shift offers on the marketplace.
+/// </summary>
 [Authorize]
-public class ShiftOffersController : ControllerBase
+public class ShiftOffersController : ApiControllerBase
 {
     private readonly IShiftOfferService _shiftOfferService;
     private readonly ILogger<ShiftOffersController> _logger;
@@ -19,58 +21,47 @@ public class ShiftOffersController : ControllerBase
         _logger = logger;
     }
 
-    // GET: api/shiftoffers
+    /// <summary>
+    /// Retrieves all active shift offers, optionally filtered by department.
+    /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ShiftOfferResponse>>> GetShiftOffers([FromQuery] int? departmentId = null)
     {
-        var offers = await _shiftOfferService.GetActiveOffersAsync(departmentId);
-        return Ok(offers);
+        var result = await _shiftOfferService.GetActiveOffersAsync(departmentId);
+        return HandleResult(result);
     }
 
-    // POST: api/shifts/{shiftId}/offer
+    /// <summary>
+    /// Places a shift on the open marketplace for others to claim.
+    /// </summary>
     [HttpPost("~/api/shifts/{shiftId}/offer")]
     public async Task<ActionResult<ShiftOfferResponse>> CreateOffer(int shiftId, [FromBody] CreateOfferDto dto)
     {
-        try
+        var userId = User.GetUserId();
+        var result = await _shiftOfferService.CreateOfferAsync(shiftId, userId, dto.ExpiresAt);
+        
+        if (result.IsSuccess && result.Value != null)
         {
-            var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
-            var expiresAt = dto.ExpiresAt ?? DateTime.UtcNow.AddDays(7);
-            var offer = await _shiftOfferService.CreateOfferAsync(shiftId, userId, expiresAt);
-            return CreatedAtAction(nameof(GetShiftOffers), new { id = offer.Id }, offer);
+            return CreatedAtAction(nameof(GetShiftOffers), new { id = result.Value.Id }, result.Value);
         }
-        catch (ArgumentException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        
+        return HandleResult(result);
     }
 
-    // POST: api/shiftoffers/{id}/claim
+    /// <summary>
+    /// Claims an available shift offer from the marketplace.
+    /// </summary>
     [HttpPost("{id}/claim")]
     public async Task<IActionResult> ClaimOffer(int id)
     {
-        try
+        var userId = User.GetUserId();
+        var result = await _shiftOfferService.ClaimOfferAsync(id, userId);
+        
+        if (result.IsSuccess)
         {
-            var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
-            var offer = await _shiftOfferService.ClaimOfferAsync(id, userId);
-
-            if (offer == null)
-            {
-                return NotFound(new { message = "Offer not found" });
-            }
-
-            return Ok(new { message = "Offer claimed successfully", offer });
+            return Ok(new { message = "Offer claimed successfully and shift transferred.", offer = result.Value });
         }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (ArgumentException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
+        
+        return HandleResult(result);
     }
 }
