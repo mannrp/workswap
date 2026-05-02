@@ -1,224 +1,220 @@
-export const API_URL = 'http://localhost:5156/api';
+import { 
+    AuthResponse, 
+    UserInfo, 
+    Department, 
+    Shift, 
+    ShiftOffer, 
+    SwapRequest, 
+    Notification 
+} from '../types';
 
-export interface User {
-    id: number;
-    email: string;
-    firstName: string;
-    lastName: string;
-    roles: string[];
-}
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5156/api';
 
-export interface AuthResponse {
-    token: string;
-    expiration: string;
-    user: User;
-}
-
-export const getToken = () => {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem('token');
-    }
-    return null;
-};
-
-export const setToken = (token: string) => {
-    if (typeof window !== 'undefined') {
-        localStorage.setItem('token', token);
-    }
-};
-
-export const removeToken = () => {
-    if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-    }
-};
-
-export const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
-    const token = getToken();
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    } as HeadersInit; // Explicit cast to HeadersInit
-
-    const response = await fetch(`${API_URL}${endpoint}`, {
-        ...options,
-        headers,
-    });
-
-    if (response.status === 401) {
-        removeToken();
+class ApiClient {
+    private getToken(): string | null {
         if (typeof window !== 'undefined') {
-            window.location.href = '/';
+            return localStorage.getItem('token');
+        }
+        return null;
+    }
+
+    private setToken(token: string): void {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('token', token);
         }
     }
 
-    return response;
-};
-
-export const login = async (email: string, password: string): Promise<AuthResponse> => {
-    const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
+    private removeToken(): void {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('token');
+        }
     }
 
-    return response.json();
-};
+    private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+        const token = this.getToken();
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        } as HeadersInit;
 
-export const register = async (email: string, password: string, firstName: string, lastName: string): Promise<AuthResponse> => {
-    const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, firstName, lastName }),
-    });
+        const response = await fetch(`${API_URL}${endpoint}`, {
+            ...options,
+            headers,
+        });
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Registration failed');
+        if (response.status === 401) {
+            this.removeToken();
+            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `API request failed with status ${response.status}`);
+        }
+
+        return response.json();
     }
 
-    return response.json();
-};
-
-export const getMe = async (): Promise<any> => {
-    const response = await fetchWithAuth('/auth/me');
-    if (!response.ok) throw new Error('Failed to fetch user');
-    return response.json();
-};
-
-// --- DEPARTMENT UTILITIES ---
-
-/**
- * Fetches a list of all employees in a specific department.
- * Used for selecting a colleague to swap shifts with.
- */
-export const getDepartmentEmployees = async (departmentId: number) => {
-    const response = await fetchWithAuth(`/departments/${departmentId}/employees`);
-
-    if (!response.ok) {
-        throw new Error('Failed to fetch department employees');
+    // --- Auth ---
+    async login(email: string, password: string): Promise<AuthResponse> {
+        const data = await this.request<AuthResponse>('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ email, password }),
+        });
+        if (data.success && data.token) {
+            this.setToken(data.token);
+        }
+        return data;
     }
 
-    return response.json();
-};
+    async register(email: string, password: string, firstName: string, lastName: string): Promise<AuthResponse> {
+        const data = await this.request<AuthResponse>('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({ email, password, firstName, lastName }),
+        });
+        if (data.success && data.token) {
+            this.setToken(data.token);
+        }
+        return data;
+    }
 
-// Shift Offers API
-export const getShiftOffers = async (departmentId?: number) => {
-    const params = departmentId ? `?departmentId=${departmentId}` : '';
-    const response = await fetchWithAuth(`/shiftoffers${params}`);
-    if (!response.ok) throw new Error('Failed to fetch shift offers');
-    return response.json();
-};
+    async getMe(): Promise<UserInfo> {
+        return this.request<UserInfo>('/auth/me');
+    }
 
-export const createShiftOffer = async (shiftId: number, expiresAt?: string) => {
-    const response = await fetchWithAuth(`/shifts/${shiftId}/offer`, {
-        method: 'POST',
-        body: JSON.stringify({ expiresAt }),
-    });
-    if (!response.ok) throw new Error('Failed to create shift offer');
-    return response.json();
-};
+    logout(): void {
+        this.removeToken();
+        if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+        }
+    }
 
-export const claimShiftOffer = async (offerId: number) => {
-    const response = await fetchWithAuth(`/shiftoffers/${offerId}/claim`, {
-        method: 'POST',
-    });
-    if (!response.ok) throw new Error('Failed to claim shift offer');
-    return response.json();
-};
+    // --- Shifts ---
+    async getMyShifts(): Promise<Shift[]> {
+        const me = await this.getMe();
+        return this.request<Shift[]>(`/shifts?userId=${me.id}`);
+    }
 
-// Swaps API
-export const getMySwaps = async () => {
-    const response = await fetchWithAuth('/swaps');
-    if (!response.ok) throw new Error('Failed to fetch swaps');
-    return response.json();
-};
+    async getOpenShifts(departmentId?: number): Promise<Shift[]> {
+        const params = departmentId ? `?departmentId=${departmentId}` : '';
+        const shifts = await this.request<Shift[]>(`/shifts${params}`);
+        return shifts.filter(s => s.assignedUserId == null);
+    }
 
-export const getMyShifts = async () => {
-    const me = await getMe();
-    const response = await fetchWithAuth(`/shifts?userId=${me.id}`);
-    if (!response.ok) throw new Error('Failed to fetch my shifts');
-    return response.json();
-};
+    async getShift(id: number): Promise<Shift> {
+        return this.request<Shift>(`/shifts/${id}`);
+    }
 
-export const getOpenShifts = async (departmentId?: number) => {
-    const params = departmentId ? `?departmentId=${departmentId}` : '';
-    const response = await fetchWithAuth(`/shifts${params}`);
-    if (!response.ok) throw new Error('Failed to fetch shifts');
-    const shifts = await response.json();
-    // Filter for unassigned shifts (open shifts)
-    return shifts.filter((s: any) => s.assignedUserId == null);
-};
+    async updateShift(id: number, data: Partial<Shift>): Promise<Shift> {
+        return this.request<Shift>(`/shifts/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    }
 
-export const claimOpenShift = async (shiftId: number) => {
-    const me = await getMe();
-    // Fetch the shift to get necessary fields
-    const shiftRes = await fetchWithAuth(`/shifts/${shiftId}`);
-    if (!shiftRes.ok) throw new Error('Failed to fetch shift');
-    const shift = await shiftRes.json();
+    async claimOpenShift(shiftId: number): Promise<Shift> {
+        const me = await this.getMe();
+        const shift = await this.getShift(shiftId);
 
-    const payload = {
-        Date: shift.date,
-        StartTime: shift.startTime,
-        EndTime: shift.endTime,
-        DepartmentId: shift.departmentId,
-        AssignedUserId: me.id,
-        Notes: shift.notes,
-        IsAvailableForSwap: shift.isAvailableForSwap
-    };
+        const payload = {
+            date: shift.date,
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            departmentId: shift.departmentId,
+            assignedUserId: me.id,
+            notes: shift.notes,
+            isAvailableForSwap: shift.isAvailableForSwap
+        };
 
-    const response = await fetchWithAuth(`/shifts/${shiftId}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-    });
+        return this.updateShift(shiftId, payload);
+    }
 
-    if (!response.ok) throw new Error('Failed to claim shift');
-    return response.json();
-};
+    // --- Shift Offers ---
+    async getShiftOffers(departmentId?: number): Promise<ShiftOffer[]> {
+        const params = departmentId ? `?departmentId=${departmentId}` : '';
+        return this.request<ShiftOffer[]>(`/shiftoffers${params}`);
+    }
 
-export const createSwapRequest = async (data: { senderShiftId: number; receiverShiftId?: number; receiverId: number }) => {
-    const response = await fetchWithAuth('/swaps', {
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
-    if (!response.ok) throw new Error('Failed to create swap request');
-    return response.json();
-};
+    async createShiftOffer(shiftId: number, expiresAt?: string): Promise<ShiftOffer> {
+        return this.request<ShiftOffer>(`/shifts/${shiftId}/offer`, {
+            method: 'POST',
+            body: JSON.stringify({ expiresAt }),
+        });
+    }
 
-export const respondToSwap = async (swapId: number, accepted: boolean) => {
-    const response = await fetchWithAuth(`/swaps/${swapId}/respond`, {
-        method: 'PUT',
-        body: JSON.stringify({ accepted }),
-    });
-    if (!response.ok) throw new Error('Failed to respond to swap');
-    return response.json();
-};
+    async claimShiftOffer(offerId: number): Promise<ShiftOffer> {
+        return this.request<ShiftOffer>(`/shiftoffers/${offerId}/claim`, {
+            method: 'POST',
+        });
+    }
 
-// Notifications API
-export const getNotifications = async () => {
-    const response = await fetchWithAuth('/notifications');
-    if (!response.ok) throw new Error('Failed to fetch notifications');
-    return response.json();
-};
+    // --- Swaps ---
+    async getMySwaps(): Promise<SwapRequest[]> {
+        return this.request<SwapRequest[]>('/swaps');
+    }
 
-export const markNotificationAsRead = async (notificationId: number) => {
-    const response = await fetchWithAuth(`/notifications/${notificationId}/read`, {
-        method: 'PUT',
-    });
-    if (!response.ok) throw new Error('Failed to mark notification as read');
-    return response.json();
-};
+    async createSwapRequest(data: { senderShiftId: number; receiverShiftId?: number; receiverId: number }): Promise<SwapRequest> {
+        return this.request<SwapRequest>('/swaps', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
 
-export const markAllNotificationsAsRead = async () => {
-    const response = await fetchWithAuth('/notifications/read-all', {
-        method: 'PUT',
-    });
-    if (!response.ok) throw new Error('Failed to mark all notifications as read');
-    return response.json();
-};
+    async respondToSwap(swapId: number, accepted: boolean): Promise<{ message: string }> {
+        return this.request<{ message: string }>(`/swaps/${swapId}/respond`, {
+            method: 'PUT',
+            body: JSON.stringify({ accepted }),
+        });
+    }
+
+    // --- Departments ---
+    async getDepartmentEmployees(departmentId: number): Promise<UserShort[]> {
+        return this.request<UserShort[]>(`/departments/${departmentId}/employees`);
+    }
+
+    // --- Notifications ---
+    async getNotifications(): Promise<Notification[]> {
+        return this.request<Notification[]>('/notifications');
+    }
+
+    async markNotificationAsRead(id: number): Promise<void> {
+        return this.request<void>(`/notifications/${id}/read`, { method: 'PUT' });
+    }
+
+    async markAllNotificationsAsRead(): Promise<void> {
+        return this.request<void>('/notifications/read-all', { method: 'PUT' });
+    }
+}
+
+interface UserShort {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+}
+
+export const api = new ApiClient();
+
+// Maintain backward compatibility for loose functions if needed, 
+// but it's better to refactor callers to use 'api' instance.
+// I'll provide these as wrappers to avoid breaking everything at once.
+export const login = (e: string, p: string) => api.login(e, p);
+export const register = (e: string, p: string, f: string, l: string) => api.register(e, p, f, l);
+export const getMe = () => api.getMe();
+export const getMyShifts = () => api.getMyShifts();
+export const getOpenShifts = (d?: number) => api.getOpenShifts(d);
+export const claimOpenShift = (id: number) => api.claimOpenShift(id);
+export const getShiftOffers = (d?: number) => api.getShiftOffers(d);
+export const createShiftOffer = (id: number, ex?: string) => api.createShiftOffer(id, ex);
+export const claimShiftOffer = (id: number) => api.claimShiftOffer(id);
+export const getMySwaps = () => api.getMySwaps();
+export const createSwapRequest = (d: any) => api.createSwapRequest(d);
+export const respondToSwap = (id: number, a: boolean) => api.respondToSwap(id, a);
+export const getDepartmentEmployees = (id: number) => api.getDepartmentEmployees(id);
+export const getNotifications = () => api.getNotifications();
+export const markNotificationAsRead = (id: number) => api.markNotificationAsRead(id);
+export const markAllNotificationsAsRead = () => api.markAllNotificationsAsRead();
+export const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
