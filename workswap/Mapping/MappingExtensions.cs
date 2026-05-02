@@ -38,4 +38,15 @@ public static class MappingExtensions
             department.CreatedAt
         );
     }
+
+    public static NotificationResponse ToResponse(this Notification notification)
+    {
+        return new NotificationResponse(
+            notification.Id,
+            notification.Message,
+            notification.IsRead,
+            notification.CreatedAt,
+            notification.ActionLink
+        );
+    }
 }
