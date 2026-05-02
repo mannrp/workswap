@@ -1,31 +1,39 @@
-'use client';
+﻿'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/components/AuthenticatedLayout';
-import ShiftTable, { Shift } from '@/components/ShiftTable';
-import { getOpenShifts, claimOpenShift } from '@/lib/api';
+import ShiftTable from '@/components/ShiftTable';
+import { api } from '@/lib/api';
+import { Shift } from '@/types';
 
 export default function OpenShiftsPage() {
-    const [openShifts, setOpenShifts] = React.useState<Shift[]>([]);
-    const [loading, setLoading] = React.useState(true);
+    const [openShifts, setOpenShifts] = useState<Shift[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    React.useEffect(() => {
-        let mounted = true;
-        getOpenShifts()
-            .then((data) => { if (mounted) setOpenShifts(data); })
-            .catch(() => { if (mounted) setOpenShifts([]); })
-            .finally(() => { if (mounted) setLoading(false); });
-        return () => { mounted = false; };
+    const fetchOpenShifts = async () => {
+        setLoading(true);
+        try {
+            const data = await api.getOpenShifts();
+            setOpenShifts(data);
+        } catch {
+            setOpenShifts([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchOpenShifts();
     }, []);
 
     const handleClaimShift = async (shift: Shift) => {
         try {
-            await claimOpenShift(shift.id);
-            const data = await getOpenShifts();
-            setOpenShifts(data);
-            alert('Shift claimed');
+            await api.claimOpenShift(shift.id);
+            await fetchOpenShifts();
+            alert('Shift successfully claimed');
         } catch (err) {
-            alert((err as Error).message);
+            const error = err as Error;
+            alert(error.message);
         }
     };
 
@@ -38,7 +46,9 @@ export default function OpenShiftsPage() {
                 </div>
 
                 <div className="border border-border bg-surface p-0 shadow-hard">
-                    {loading ? <p className="p-6">Loading...</p> : (
+                    {loading ? (
+                        <div className="text-center py-12 font-mono animate-pulse">LOADING OPEN SHIFTS...</div>
+                    ) : (
                         <ShiftTable
                             shifts={openShifts}
                             actionLabel="CLAIM SHIFT"
@@ -46,6 +56,12 @@ export default function OpenShiftsPage() {
                         />
                     )}
                 </div>
+
+                {!loading && openShifts.length === 0 && (
+                    <div className="text-center py-12 border border-border bg-surface border-dashed">
+                        <p className="text-muted-foreground font-mono">NO OPEN SHIFTS AVAILABLE AT THIS TIME</p>
+                    </div>
+                )}
             </div>
         </AuthenticatedLayout>
     );

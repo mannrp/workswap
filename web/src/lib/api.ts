@@ -1,11 +1,12 @@
-import { 
-    AuthResponse, 
-    UserInfo, 
-    Shift, 
-    ShiftOffer, 
-    SwapRequest, 
+import {
+    AuthResponse,
+    UserInfo,
+    UserShort,
+    Shift,
+    ShiftOffer,
+    SwapRequest,
     CreateSwapRequest,
-    Notification 
+    Notification
 } from '../types';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5156/api';
@@ -56,6 +57,21 @@ class ApiClient {
         }
 
         return response.json();
+    }
+
+    /**
+     * Raw fetch wrapper for legacy code that needs direct Response access.
+     * Prefer using typed methods (getMyShifts, etc.) over this.
+     */
+    async fetchWithAuth(endpoint: string, options: RequestInit = {}): Promise<Response> {
+        const token = this.getToken();
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        } as HeadersInit;
+
+        return fetch(`${API_URL}${endpoint}`, { ...options, headers });
     }
 
     // --- Auth ---
@@ -189,13 +205,6 @@ class ApiClient {
     }
 }
 
-interface UserShort {
-    id: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-}
-
 export const api = new ApiClient();
 
 // Maintain backward compatibility for loose functions if needed, 
@@ -218,3 +227,6 @@ export const getNotifications = () => api.getNotifications();
 export const markNotificationAsRead = (id: number) => api.markNotificationAsRead(id);
 export const markAllNotificationsAsRead = () => api.markAllNotificationsAsRead();
 export const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+export const setToken = (t: string) => { if (typeof window !== 'undefined') localStorage.setItem('token', t); };
+export const removeToken = () => { if (typeof window !== 'undefined') localStorage.removeItem('token'); };
+export const fetchWithAuth = (endpoint: string, options: RequestInit = {}) => api.fetchWithAuth(endpoint, options);

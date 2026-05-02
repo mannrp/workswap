@@ -1,10 +1,5 @@
-export interface User {
-    id: number;
-    email: string;
-    firstName: string;
-    lastName: string;
-    roles: string[];
-}
+// UserInfo is the canonical user type — User is an alias kept for backward compat
+export type User = UserInfo;
 
 export interface AuthResponse {
     success: boolean;
@@ -19,6 +14,7 @@ export interface UserInfo {
     firstName: string;
     lastName: string;
     roles: string[];
+    departmentId?: number;
 }
 
 export interface Department {
@@ -27,6 +23,13 @@ export interface Department {
     description?: string;
     employeeCount: number;
     createdAt: string;
+}
+
+export interface UserShort {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
 }
 
 export interface Shift {

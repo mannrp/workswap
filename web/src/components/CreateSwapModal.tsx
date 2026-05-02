@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { UserInfo } from '@/types';
+import { UserShort } from '@/types';
 
 interface CreateSwapModalProps {
     shiftId: number;
@@ -12,7 +12,7 @@ interface CreateSwapModalProps {
 }
 
 export default function CreateSwapModal({ shiftId, shiftDate, onClose, onSuccess }: CreateSwapModalProps) {
-    const [colleagues, setColleagues] = useState<UserInfo[]>([]);
+    const [colleagues, setColleagues] = useState<UserShort[]>([]);
     const [selectedReceiverId, setSelectedReceiverId] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);

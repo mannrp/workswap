@@ -1,7 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { removeToken, User } from '../lib/api';
+import { removeToken } from '../lib/api';
+import { User } from '../types';
+
 import { ThemeToggle } from './ThemeToggle';
 
 interface NavbarProps {
