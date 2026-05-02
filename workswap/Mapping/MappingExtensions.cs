@@ -49,4 +49,34 @@ public static class MappingExtensions
             notification.ActionLink
         );
     }
+
+    public static SwapRequestResponse ToResponse(this SwapRequest swap)
+    {
+        return new SwapRequestResponse(
+            swap.Id,
+            swap.SenderShiftId,
+            swap.SenderShift?.ToResponse(),
+            swap.ReceiverId,
+            $"{swap.Receiver?.FirstName} {swap.Receiver?.LastName}",
+            swap.ReceiverShiftId,
+            swap.ReceiverShift?.ToResponse(),
+            swap.Status,
+            swap.CreatedAt,
+            swap.UpdatedAt
+        );
+    }
+
+    public static ShiftOfferResponse ToResponse(this ShiftOffer offer)
+    {
+        return new ShiftOfferResponse(
+            offer.Id,
+            offer.ShiftId,
+            offer.Shift?.ToResponse(),
+            offer.CreatedByUserId,
+            $"{offer.CreatedByUser?.FirstName} {offer.CreatedByUser?.LastName}",
+            offer.Status,
+            offer.CreatedAt,
+            offer.ExpiresAt
+        );
+    }
 }

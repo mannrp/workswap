@@ -1,11 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using workswap.Common;
 using workswap.Data;
 using workswap.DTOs;
-using workswap.Models;
 using workswap.Mapping;
+using workswap.Models;
 
 namespace workswap.Services;
 
+/// <summary>
+/// Implementation of IShiftService for core shift management.
+/// </summary>
 public class ShiftService : IShiftService
 {
     private readonly ApplicationDbContext _context;
@@ -17,7 +21,7 @@ public class ShiftService : IShiftService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<ShiftResponse>> GetAllAsync(
+    public async Task<Result<IEnumerable<ShiftResponse>>> GetAllAsync(
         int? departmentId = null,
         int? userId = null,
         DateOnly? startDate = null,
@@ -29,7 +33,6 @@ public class ShiftService : IShiftService
             .Include(s => s.AssignedUser)
             .AsQueryable();
 
-        // Apply filters
         if (departmentId.HasValue)
             query = query.Where(s => s.DepartmentId == departmentId.Value);
 
@@ -45,76 +48,58 @@ public class ShiftService : IShiftService
         if (availableForSwap.HasValue)
             query = query.Where(s => s.IsAvailableForSwap == availableForSwap.Value);
 
-        var shifts = await query
-            .OrderBy(s => s.Date)
-            .ThenBy(s => s.StartTime)
-            .ToListAsync();
+        var shifts = await query.OrderBy(s => s.Date).ThenBy(s => s.StartTime).ToListAsync();
 
-        return shifts.Select(s => s.ToResponse());
+        return Result<IEnumerable<ShiftResponse>>.Success(
+            shifts.Select(s => s.ToResponse())
+        );
     }
 
-    public async Task<ShiftResponse?> GetByIdAsync(int id)
+    public async Task<Result<ShiftResponse>> GetByIdAsync(int id)
     {
         var shift = await _context.Shifts
             .Include(s => s.Department)
             .Include(s => s.AssignedUser)
             .FirstOrDefaultAsync(s => s.Id == id);
 
-        return shift?.ToResponse();
+        if (shift == null)
+            return Result<ShiftResponse>.NotFound($"Shift with ID {id} not found.");
+
+        return Result<ShiftResponse>.Success(shift.ToResponse());
     }
 
-    public async Task<ShiftResponse> CreateAsync(CreateShiftRequest request)
+    public async Task<Result<ShiftResponse>> CreateAsync(CreateShiftRequest request)
     {
-        // Validate department exists
-        var department = await _context.Departments.FindAsync(request.DepartmentId);
-        if (department == null)
-        {
-            throw new ArgumentException($"Department with ID {request.DepartmentId} not found.");
-        }
-
-        // Validate user exists if provided
-        ApplicationUser? assignedUser = null;
-        if (request.AssignedUserId.HasValue)
-        {
-            assignedUser = await _context.Users.FindAsync(request.AssignedUserId.Value);
-            if (assignedUser == null)
-            {
-                throw new ArgumentException($"User with ID {request.AssignedUserId} not found.");
-            }
-        }
-
-        // Validate time range
-        if (request.EndTime <= request.StartTime)
-        {
-            throw new ArgumentException("End time must be after start time.");
-        }
+        // Basic validation
+        if (request.StartTime >= request.EndTime)
+            return Result<ShiftResponse>.Failure("Start time must be before end time");
 
         var shift = new Shift
         {
             Date = request.Date,
             StartTime = request.StartTime,
             EndTime = request.EndTime,
+            Notes = request.Notes,
             DepartmentId = request.DepartmentId,
             AssignedUserId = request.AssignedUserId,
-            Notes = request.Notes
+            IsAvailableForSwap = request.IsAvailableForSwap
         };
 
         _context.Shifts.Add(shift);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Shift {ShiftId} created for department {DepartmentId}", shift.Id, shift.DepartmentId);
+        _logger.LogInformation("Shift {ShiftId} created", shift.Id);
 
-        // Reload with navigation properties
-        await _context.Entry(shift).Reference(s => s.Department).LoadAsync();
-        if (shift.AssignedUserId.HasValue)
-        {
-            await _context.Entry(shift).Reference(s => s.AssignedUser).LoadAsync();
-        }
+        // Reload for response
+        var resultShift = await _context.Shifts
+            .Include(s => s.Department)
+            .Include(s => s.AssignedUser)
+            .FirstAsync(s => s.Id == shift.Id);
 
-        return shift.ToResponse();
+        return Result<ShiftResponse>.Success(resultShift.ToResponse());
     }
 
-    public async Task<ShiftResponse?> UpdateAsync(int id, UpdateShiftRequest request)
+    public async Task<Result<ShiftResponse>> UpdateAsync(int id, UpdateShiftRequest request)
     {
         var shift = await _context.Shifts
             .Include(s => s.Department)
@@ -122,70 +107,42 @@ public class ShiftService : IShiftService
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (shift == null)
-        {
-            return null;
-        }
+            return Result<ShiftResponse>.NotFound($"Shift with ID {id} not found.");
 
-        // Validate department exists
-        var department = await _context.Departments.FindAsync(request.DepartmentId);
-        if (department == null)
-        {
-            throw new ArgumentException($"Department with ID {request.DepartmentId} not found.");
-        }
+        if (request.StartTime >= request.EndTime)
+            return Result<ShiftResponse>.Failure("Start time must be before end time");
 
-        // Validate user exists if provided
-        if (request.AssignedUserId.HasValue)
-        {
-            var assignedUser = await _context.Users.FindAsync(request.AssignedUserId.Value);
-            if (assignedUser == null)
-            {
-                throw new ArgumentException($"User with ID {request.AssignedUserId} not found.");
-            }
-        }
-
-        // Validate time range
-        if (request.EndTime <= request.StartTime)
-        {
-            throw new ArgumentException("End time must be after start time.");
-        }
-
-        // Update fields
         shift.Date = request.Date;
         shift.StartTime = request.StartTime;
         shift.EndTime = request.EndTime;
-        shift.DepartmentId = request.DepartmentId;
-        shift.AssignedUserId = request.AssignedUserId;
         shift.Notes = request.Notes;
         shift.IsAvailableForSwap = request.IsAvailableForSwap;
+        
+        if (request.DepartmentId.HasValue)
+            shift.DepartmentId = request.DepartmentId.Value;
+            
+        if (request.AssignedUserId.HasValue)
+            shift.AssignedUserId = request.AssignedUserId.Value;
 
         await _context.SaveChangesAsync();
+        
+        _logger.LogInformation("Shift {ShiftId} updated", id);
 
-        _logger.LogInformation("Shift {ShiftId} updated", shift.Id);
-
-        // Reload navigation properties if department changed
-        await _context.Entry(shift).Reference(s => s.Department).LoadAsync();
-        if (shift.AssignedUserId.HasValue)
-        {
-            await _context.Entry(shift).Reference(s => s.AssignedUser).LoadAsync();
-        }
-
-        return shift.ToResponse();
+        return Result<ShiftResponse>.Success(shift.ToResponse());
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<Result> DeleteAsync(int id)
     {
         var shift = await _context.Shifts.FindAsync(id);
 
         if (shift == null)
-        {
-            return false;
-        }
+            return Result.NotFound($"Shift with ID {id} not found.");
 
         _context.Shifts.Remove(shift);
         await _context.SaveChangesAsync();
-
+        
         _logger.LogInformation("Shift {ShiftId} deleted", id);
 
-        return true;
+        return Result.Success();
     }
 }
